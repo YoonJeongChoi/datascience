@@ -1,0 +1,316 @@
+---
+title: "<2014~2016년 연도 및 지역별 학력-여행자 수의 관계 분석>"
+output: github_document
+---
+
+### <서론>
+
+####초록 
+
+ 근래의 국내 여행 시장 약화 추세로 인해 국내 여행 진흥을 위한 다양한 시도가 이루어지고 있다. 그만큼 실질적인 국내 여행 참가자들의 데이터의 중요성도 높아졌기에 이를 알아봄으로써 국내 여행자들의 특성에 대해 파악을 할 수 있다. 특히나 학력을 중요시하는 대한민국에서 "여행" 이라는 여가를 어떤 학력을 가진 사람들이 많이 즐기는 지를 분석한다면 여행 홍보 타겟을 정하여 홍보 할 수 있을 것이다. 본 보고서는 "연도 및 지역별"을 기준으로 "학력-여행자 수의 관계"의 순서로 분석하였다. 분석의 결과로는 "고등학교"를 졸업한 여행자의 수가 가장높게 나타났고, 그 다음으로는 "대학교"를 졸업한 여행자의 수가 높게 나타났다. 이 두개의 학력이 다른 학력에 비해 현저히 높은 수치를 보였다. 
+
+
+
+###<본론_분석>
+데이터 불러오기
+---------------
+
+먼저 분석에 필요한 패키지를 로드한다. 데이터를 불러오기 위한 `readxl` 패키지와 구문 작성 및 그래프 작성에 필요한 `dplyr`, `ggplot2` 패키지를 로드한다.
+
+
+``` {r}
+library(ggplot2)
+library(dplyr)
+library(readxl)
+```
+
+다음으로 데이터를 불러온다. `read_excel()`을 이용해 데이터를 불러온 뒤, 데이터 sheet를 사용하고, 첫 번째 행이 변수명이었으므로 `col_names`는 `T`로 입력한다.
+
+``` {r}
+travel <- read_excel("travel2.xlsx", sheet=1, col_names = T)
+travel
+```
+
+불러온 데이터가 어떤 속성을 가지고 있는지, 결측치가 있는지 `str()`함수와 `table(is.na())`를 이용하여 확인한 후 데이터 훼손을 막기 위해 복사한다.
+``` {r}
+str(travel)
+```
+
+``` {r}
+travel_new4 <- travel
+```
+
+#### 1. 학력별 연도에 따른 국내 여행자수 평균 비교
+
+분석을 위해 필요한 항목들만 추출해 새로운 변수를 만든다.
+
+``` {r}
+
+total <- travel_new4[1:17,3:6]
+
+man <- travel_new4[18:34,3:6]
+
+woman <- travel_new4[35:51, 3:6]
+
+elementary <- travel_new4[375:391, 3:6]
+
+middle <- travel_new4[392:408, 3:6]
+
+high <- travel_new4[409:425, 3:6]
+
+college <- travel_new4[426:442, 3:6]        ##전문대 재/졸
+
+university <- travel_new4[443:459, 3:6]     ##대학교 재/졸
+
+graduate <- travel_new4[460:476, 3:6]    ##대학원 재/졸
+```
+
+`cbind()`를 이용해 각 항목에서 연도별 데이터를 추출해서 합친다.
+
+``` {r}
+#2014년 데이터 
+school_2014 <- cbind(man[,c(1,2)], woman[,2], elementary[,2], middle[,2], high[,2], college[,2], university[,2], graduate[,2])
+school_2014
+```
+
+
+추출한 데이터의 칼럼의 이름을 통일하기위해 변경한다. 
+``` {r}
+names(school_2014) <- c("city", "man", "woman", "elementary", "middle", "high", "college", "university", "graduate")
+school_2014   
+```
+
+
+2014년 데이터와 마찬가지로 2015년, 2016년 데이터를 생성한다. 
+``` {r}
+#2015년 데이터
+school_2015 <- cbind(man[,c(1,3)], woman[,3], elementary[,3], middle[,3], high[,3], college[,3], university[,3], graduate[,3])
+
+names(school_2015) <- c("city", "man", "woman", "elementary", "middle", "high", "college", "university", "graduate")
+school_2015
+```
+
+``` {r}
+#2016년 데이터
+school_2016 <- cbind(man[,c(1,4)], woman[,4], elementary[,4], middle[,4], high[,4], college[,4], university[,4], graduate[,4])
+
+names(school_2016) <- c("city", "man", "woman", "elementary", "middle", "high", "college", "university", "graduate")
+school_2016
+```
+
+    
+`mutate()`함수를 이용해 위에서 만든 연도별 데이터에 "연도" 변수 추가한 뒤 `bind_rows()`를 이용해 다시 합쳐준다.
+
+``` {r}
+school_2014 <- school_2014 %>% 
+  mutate(year="2014")
+
+school_2015 <- school_2015 %>% 
+  mutate(year="2015")
+
+school_2016 <- school_2016 %>% 
+  mutate(year="2016")
+
+school <- bind_rows(school_2014, school_2015, school_2016)
+school
+```
+
+연도별로 학력 대비 여행자 수의 평균을 비교해보려 한다. `group_by()`를 이용해 year을 나누고 각 학력 별 평균을 구해 새로운 변수를 생성한다.
+
+``` {r}
+school_year <- school %>% 
+  group_by(year) %>% 
+  summarise(mean_e = mean(elementary),
+            mean_m = mean(middle),
+            mean_h = mean(high),
+            mean_c = mean(college),
+            mean_u = mean(university),
+            mean_g = mean(graduate)) 
+
+school_year
+```
+
+그래프를 만들기 위한 데이터 구성을 변경한다. 학력별 데이터를 추출한 뒤 `mutate()`와 `names()` 함수를 이용해 변수명을 새로 설정한다. 
+
+``` {r}
+school_yearE <- school_year[,1:2]
+school_yearE <- school_yearE %>% 
+  mutate(meanType="E")
+names(school_yearE) <- c("year",  "mean",   "meanType")
+school_yearE  ##초등학교를 졸업한 사람들의 연도별 평균 
+```
+
+``` {r}
+school_yearM <- school_year[,c(1,3)]
+school_yearM <- school_yearM %>% 
+  mutate(meanType="M")
+names(school_yearM) <- c("year",  "mean",   "meanType")
+school_yearM  ##중학교를 졸업한 사람들의 연도별 평균
+```
+
+``` {r}
+school_yearH <- school_year[,c(1,4)]
+school_yearH <- school_yearH %>% 
+  mutate(meanType="H")
+names(school_yearH) <- c("year",  "mean",   "meanType")
+school_yearH  ##고등학교를 졸업한 사람들의 연도별 평균
+```
+
+``` {r}
+school_yearC <- school_year[,c(1,5)]
+school_yearC <- school_yearC %>% 
+  mutate(meanType="C")
+names(school_yearC) <- c("year",  "mean",   "meanType")
+school_yearC  ##전문대학을 졸업한 사람들의 연도별 평균
+```
+    
+``` {r}
+school_yearU <- school_year[,c(1,6)]
+school_yearU <- school_yearU %>% 
+  mutate(meanType="U")
+names(school_yearU) <- c("year",  "mean",   "meanType")
+school_yearU  ##대학교를 졸업한 사람들의 연도별 평균
+```
+
+``` {r}
+school_yearG <- school_year[,c(1,7)]
+school_yearG <- school_yearG %>% 
+  mutate(meanType="G")
+names(school_yearG) <- c("year",  "mean",   "meanType")
+school_yearG  ##대학원을 졸업한 사람들의 연도별 평균
+```
+
+
+`bind_rows()`를 이용해 데이터를 합친다.
+``` {r}
+totalYear <- bind_rows(school_yearE, school_yearM, school_yearH, school_yearC, school_yearU, school_yearG)  ##데이터 합치기 
+totalYear
+```
+
+
+위에서 만든 데이터를 이용한 막대그래프를 만든다. `x축`은 meanType, `y축`은 mean으로 설정하고 `scale_x_discrete(limits=c())` 함수를 이용해 `x축` 변수의 순서를 설정해준다.
+
+``` {r}
+##막대그래프 만들어서 비교하기 
+ggplot(data=totalYear, aes(x=meanType, y= mean, fill=year)) +
+  geom_col()+
+  scale_x_discrete(limits=c("E", "M","H","C","U","G"))
+```
+
+위의 그래프는 학력별 년도에 따른 평균 여행자 수를 파악할 수 있다. 전체 그래프의 순서대로는 "고등학교", "대학교", "전문대", "중학교", "초등학교","대학원" 졸업 순으로 여행자 수가 많은 것으로 나타났다.  그 안에서 연도별로 파악했을때, 대체적으로 비슷한 크기의 평균 여행 횟수가 나타난다는 것을 파악할 수 있었다. 결과적으로 이 그래프를 통해서는 고등학교를 졸업한 학력의 여행자수와 대학교를 졸업한 학력의 여행자의 수가 다른 학력에 비해 현저히 높은 수치를 보이고 있다는 것을 알수있으며, 가장 높은 사람의 수는 고등학교를 졸업한 학력의 여행자였고, 가장 낮은 사람의 수는 대학원을 졸업한 학력의 여행자이다.
+
+
+
+#### 2. 학력별 여행지에 따른 국내 여행자수 평균 비교
+
+지역별로 각 학력을 졸업한 사람의 수의 합을 구한다. `group_by()`를 이용해 `city`를 분류하고 `mutate()`를 통해 남녀 수를 합한 `total` 변수를 생성한다. 이후 총 인원 및 각 학력별 여행자 수의 총합을 구한 뒤 `arrange()`를 이용해 오름차순으로 정렬한다.
+
+``` {r}
+##1. 지역별로 각 학력을 졸업한 사람의 수의 합계 구하기
+school_sum <- school %>% 
+  group_by(city) %>% 
+  mutate(total=man+woman) %>% 
+  summarise(sum_t=sum(total),
+            sum_e=sum(elementary),
+            sum_m=sum(middle),
+            sum_h=sum(high),
+            sum_c=sum(college),
+            sum_u=sum(university),
+            sum_g=sum(graduate)) %>% 
+  arrange((city)) 
+
+school_sum
+```
+
+
+지역별로 각 학력을 졸업한 사람의 비율을 구한다. 위에서 구한 `school_sum`을 이용해 지역별로 분류하고 각 학력별 인원의 비율을 구한 뒤 오름차순으로 정렬한다.
+
+``` {r}
+school_ratio <- school_sum %>% 
+  group_by(city) %>% 
+  summarise(ratio_e = sum_e/sum_t*100,
+            ratio_m = sum_m/sum_t*100,
+            ratio_h = sum_h/sum_t*100,
+            ratio_c = sum_c/sum_t*100,
+            ratio_u = sum_u/sum_t*100,
+            ratio_g = sum_g/sum_t*100) %>% 
+  arrange((city)) 
+
+school_ratio
+```
+
+그래프를 만들기 위한 데이터 구성을 변경한다. 지역별 데이터를 추출한 뒤 `mutate()`와 `names()` 함수를 이용해 변수명을 새로 설정한다. 
+
+``` {r}
+school_ratioE <- school_ratio[,1:2]
+school_ratioE <- school_ratioE %>% 
+  mutate(ratio="ratio_e")
+names(school_ratioE) <- c("city",  "ratio",   "ratioType")
+school_ratioE
+```
+
+``` {r}
+school_ratioM <- school_ratio[,c(1,3)]
+school_ratioM <- school_ratioM %>% 
+  mutate(ratio="ratio_m")
+names(school_ratioM) <- c("city",  "ratio",   "ratioType")
+school_ratioM
+```
+
+``` {r}
+school_ratioH <- school_ratio[,c(1,4)]
+school_ratioH <- school_ratioH %>% 
+  mutate(ratio="ratio_h")
+names(school_ratioH) <- c("city",  "ratio",   "ratioType")
+school_ratioH
+```
+
+``` {r}
+school_ratioC <- school_ratio[,c(1,5)]
+school_ratioC <- school_ratioC %>% 
+  mutate(ratio="ratio_c")
+names(school_ratioC) <- c("city",  "ratio",   "ratioType")
+school_ratioC
+```
+
+``` {r}
+school_ratioU <- school_ratio[,c(1,6)]
+school_ratioU <- school_ratioU %>% 
+  mutate(ratio="ratio_u")
+names(school_ratioU) <- c("city",  "ratio",   "ratioType")
+school_ratioU
+```
+
+``` {r}
+school_ratioG <- school_ratio[,c(1,7)]
+school_ratioG <- school_ratioG %>% 
+  mutate(ratio="ratio_g")
+names(school_ratioG) <- c("city",  "ratio",   "ratioType")
+school_ratioG
+```
+
+
+`bind_rows()`를 이용해 데이터를 추가한다.
+``` {r}
+totalRatio <- bind_rows(school_ratioE, school_ratioM, school_ratioH, school_ratioC, school_ratioU, school_ratioG)
+
+totalRatio
+```
+
+위에서 만든 데이터를 이용한 막대그래프를 만든다. `x축`은 city, `y축`은 ratio, `fill`은 ratioType으로 설정한다.
+
+``` {r}
+ggplot(data=totalRatio, aes(x=city, y=ratio, fill=ratioType )) +
+  geom_col()+
+  coord_flip()
+```
+
+결과 그래프를 보면 지역에 따라 대체적으로 비숫한 학력별 여행 비율이 나타난다는 것을 확인할 수 있었다. 전체적인 모양은 고등학교를 졸업한사람과 대학교를 졸업한 사람들이 여행의 비율이 높은것으로 나타났다. 이러한 결과는 앞서 분석하였던 연도별과 유사한 결과이다. 세종시를 방문한 사람들의 비율에서는 전문대학을 졸업한 사람들의 비율이 2번째로 높게 나타났다. 이는 다른 지역과 비교해보았을때 높은 비율이라고 볼 수 있다.
+
+
+###<결론_논의(한계점, 비판점), 추후 분석 방향>
+
+ 본 보고서의 분석 결과중 크게 눈에 띄게 주목할만한 점은 고등학교를 졸업한 여행자의 수가 연도별, 지역별로 보았을때 대체적으로 많은 수치를 보이고 있다는 것이다. 이는 "대학입시"라는 커다란 장벽을 가지고있는 대한민국 고등학생들에게 대학 합격과 동시에 자유의 시간을 누리는 현상으로도 볼 수 있다. 또한 다른지역들은 비슷한 비율의 결과를 가져왔지만 세종시 방문자의 비율중 전문대학을 졸업한사람들의 비율이 다른 지역에 비해 높은 수치를 나타내었다. 우리나라 첫 특별자치시이자, 행정복합도시인 세종시는 특정분야의 전문성을 띤다고 볼 수 있다. 
+ 위의 분석에서의 한계점은 데이터의 구성을 변경하는데에 많은 코드를 작성했다는 것이다. 더 깊은 학습을 통하여 코드는 적게 사용하되 원하는 결과를 낼수 있어야 할 것이다. 또한 다양한 시각적 요소들을 보여줄수 없었다는 점이 아쉽다고 볼 수 있다. 
+ 추후에는 단순히 학력을 비교해보기보다는 대학전공자와 여행지 간의 관계로 더 나아가 분석해 볼 수 있을 것이다. 국내여행으로 한정짓지말고 어떤분야를 전공하고 공부한 사람들이 어떤 나라로 여행을 많이 가는지를 분석해 볼 수 있을 것이다. 
+ 
